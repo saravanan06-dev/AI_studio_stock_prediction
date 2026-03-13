@@ -1,0 +1,13 @@
+# Python ML Engine Requirements
+pandas
+numpy
+yfinance
+scikit-learn
+xgboost
+tensorflow
+fastapi
+uvicorn
+python-dotenv
+pandas_ta
+matplotlib
+seaborn
