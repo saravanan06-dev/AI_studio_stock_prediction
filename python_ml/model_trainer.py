@@ -44,9 +44,21 @@ def train_models(X, y):
     return best_model
 
 if __name__ == "__main__":
+    print("[TRAINER] Starting training process...")
     from data_processor import fetch_data, engineer_features, prepare_data
-    df = fetch_data("AAPL")
-    df = engineer_features(df)
-    X, y, scaler = prepare_data(df)
-    joblib.dump(scaler, 'scaler.pkl')
-    train_models(X, y)
+    print("[TRAINER] Fetching data for AAPL...")
+    try:
+        df = fetch_data("AAPL")
+        print(f"[TRAINER] Data fetched: {len(df)} rows")
+        df = engineer_features(df)
+        print("[TRAINER] Features engineered")
+        X, y, scaler = prepare_data(df)
+        print(f"[TRAINER] Data prepared for training. X shape: {X.shape}")
+        joblib.dump(scaler, 'scaler.pkl')
+        print("[TRAINER] Scaler saved as scaler.pkl")
+        train_models(X, y)
+        print("[TRAINER] Model training complete and saved.")
+    except Exception as e:
+        print(f"[TRAINER] ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()

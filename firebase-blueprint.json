@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "Stores user profile information and settings.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique ID of the user." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "photoURL": { "type": "string", "description": "The user's profile photo URL." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user account was created." }
+      },
+      "required": ["uid", "email"]
+    },
+    "watchlist": {
+      "title": "Watchlist Item",
+      "description": "A stock symbol added to a user's watchlist.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The ID of the user who owns this item." },
+        "symbol": { "type": "string", "description": "The stock symbol (e.g., RELIANCE.NS)." },
+        "tabIndex": { "type": "integer", "description": "The index of the watchlist tab (1-5)." },
+        "addedAt": { "type": "string", "format": "date-time", "description": "When the symbol was added." }
+      },
+      "required": ["uid", "symbol"]
+    },
+    "alerts": {
+      "title": "Price Alert",
+      "description": "A custom price alert for a stock.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The ID of the user who owns this alert." },
+        "symbol": { "type": "string", "description": "The stock symbol." },
+        "threshold": { "type": "number", "description": "The price threshold for the alert." },
+        "type": { "type": "string", "enum": ["above", "below"], "description": "Whether to alert when price is above or below the threshold." },
+        "isTriggered": { "type": "boolean", "description": "Whether the alert has been triggered." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the alert was created." }
+      },
+      "required": ["uid", "symbol", "threshold", "type"]
+    },
+    "orders": {
+      "title": "Stock Order",
+      "description": "A buy or sell transaction for a stock.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The ID of the user who placed this order." },
+        "symbol": { "type": "string", "description": "The stock symbol." },
+        "type": { "type": "string", "enum": ["BUY", "SELL"], "description": "The type of order." },
+        "quantity": { "type": "number", "description": "The number of shares." },
+        "price": { "type": "number", "description": "The price per share." },
+        "totalValue": { "type": "number", "description": "The total value of the order." },
+        "fee": { "type": "number", "description": "The transaction fee for the order." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the order was placed." },
+        "realizedPnL": { "type": "number", "description": "Profit or loss realized on a sell order." }
+      },
+      "required": ["uid", "symbol", "type", "quantity", "price", "totalValue", "timestamp"]
+    },
+    "holdings": {
+      "title": "Stock Holding",
+      "description": "The current quantity and average cost of a stock owned by a user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The ID of the user who owns this holding." },
+        "symbol": { "type": "string", "description": "The stock symbol." },
+        "quantity": { "type": "number", "description": "The total number of shares currently held." },
+        "avgBuyPrice": { "type": "number", "description": "The average cost per share." },
+        "investedValue": { "type": "number", "description": "The total amount invested in this stock." },
+        "lastUpdatedAt": { "type": "string", "format": "date-time", "description": "When the holding was last updated." }
+      },
+      "required": ["uid", "symbol", "quantity", "avgBuyPrice", "investedValue", "lastUpdatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile documents."
+    },
+    "/watchlist/{itemId}": {
+      "schema": "watchlist",
+      "description": "Individual watchlist items."
+    },
+    "/alerts/{alertId}": {
+      "schema": "alerts",
+      "description": "User price alerts."
+    },
+    "/orders/{orderId}": {
+      "schema": "orders",
+      "description": "User stock orders."
+    },
+    "/holdings/{holdingId}": {
+      "schema": "holdings",
+      "description": "User stock holdings."
+    }
+  }
+}

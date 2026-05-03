@@ -1,32 +1,45 @@
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
+import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 def fetch_data(symbol, period="2y"):
-    df = yf.download(symbol, period=period)
+    df = yf.download(symbol, period=period, progress=False)
+    # Handle multi-index columns if present
     df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
     return df
 
 def engineer_features(df):
-    # SMA & EMA
-    df['SMA_10'] = ta.sma(df['Close'], length=10)
-    df['SMA_50'] = ta.sma(df['Close'], length=50)
-    df['EMA_10'] = ta.ema(df['Close'], length=10)
-    df['EMA_50'] = ta.ema(df['Close'], length=50)
+    df = df.copy()
     
-    # RSI
-    df['RSI_14'] = ta.rsi(df['Close'], length=14)
+    # 1. Moving Averages (Manual)
+    df['SMA_10'] = df['Close'].rolling(window=10).mean()
+    df['SMA_50'] = df['Close'].rolling(window=50).mean()
+    df['EMA_10'] = df['Close'].ewm(span=10, adjust=False).mean()
+    df['EMA_50'] = df['Close'].ewm(span=50, adjust=False).mean()
     
-    # MACD
-    macd = ta.macd(df['Close'])
-    df = pd.concat([df, macd], axis=1)
+    # 2. RSI (Manual)
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    df['RSI_14'] = 100 - (100 / (1 + rs))
     
-    # Bollinger Bands
-    bbands = ta.bbands(df['Close'], length=20, std=2)
-    df = pd.concat([df, bbands], axis=1)
+    # 3. MACD (Manual)
+    # EMA 12, 26
+    exp1 = df['Close'].ewm(span=12, adjust=False).mean()
+    exp2 = df['Close'].ewm(span=26, adjust=False).mean()
+    df['MACD'] = exp1 - exp2
+    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+    df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
     
-    # Returns & Volatility
+    # 4. Bollinger Bands (Manual)
+    df['BB_Middle'] = df['Close'].rolling(window=20).mean()
+    df['BB_Std'] = df['Close'].rolling(window=20).std()
+    df['BB_Upper'] = df['BB_Middle'] + (df['BB_Std'] * 2)
+    df['BB_Lower'] = df['BB_Middle'] - (df['BB_Std'] * 2)
+    
+    # 5. Returns & Volatility
     df['Daily_Return'] = df['Close'].pct_change()
     df['Volatility'] = df['Daily_Return'].rolling(window=20).std()
     df['Volume_Change'] = df['Volume'].pct_change()

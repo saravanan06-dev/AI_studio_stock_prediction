@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - createdAt: string (optional)
+    //
+    // Collection: watchlist
+    // Document ID: {itemId}
+    // Fields:
+    //   - uid: string (required)
+    //   - symbol: string (required)
+    //   - tabIndex: number (optional, default 1)
+    //   - addedAt: string (optional)
+    //
+    // Collection: alerts
+    // Document ID: {alertId}
+    // Fields:
+    //   - uid: string (required)
+    //   - symbol: string (required)
+    //   - threshold: number (required)
+    //   - type: string (required, 'above' or 'below')
+    //   - isTriggered: bool (optional)
+    //   - createdAt: string (optional)
+    //
+    // Collection: orders
+    // Document ID: {orderId}
+    // Fields:
+    //   - uid: string (required)
+    //   - symbol: string (required)
+    //   - type: string (required, 'BUY' or 'SELL')
+    //   - quantity: number (required)
+    //   - price: number (required)
+    //   - totalValue: number (required)
+    //   - fee: number (required)
+    //   - timestamp: string (required)
+    //   - realizedPnL: number (optional)
+    //
+    // Collection: holdings
+    // Document ID: {holdingId}
+    // Fields:
+    //   - uid: string (required)
+    //   - symbol: string (required)
+    //   - quantity: number (required)
+    //   - avgBuyPrice: number (required)
+    //   - investedValue: number (required)
+    //   - lastUpdatedAt: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidWatchlistItem(data) {
+      return data.keys().hasAll(['uid', 'symbol']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.symbol is string && data.symbol.size() > 0 && data.symbol.size() < 20 &&
+             (!('tabIndex' in data) || (data.tabIndex is int && data.tabIndex >= 1 && data.tabIndex <= 10));
+    }
+
+    function isValidAlert(data) {
+      return data.keys().hasAll(['uid', 'symbol', 'threshold', 'type']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.symbol is string && data.symbol.size() > 0 &&
+             data.threshold is number &&
+             data.type in ['above', 'below'] &&
+             (!('isTriggered' in data) || data.isTriggered is bool);
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['uid', 'symbol', 'type', 'quantity', 'price', 'totalValue', 'fee', 'timestamp']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.symbol is string && data.symbol.size() > 0 &&
+             data.type in ['BUY', 'SELL'] &&
+             data.quantity is number && data.quantity > 0 &&
+             data.price is number && data.price > 0 &&
+             data.totalValue is number &&
+             data.fee is number && data.fee >= 0 &&
+             (!('realizedPnL' in data) || data.realizedPnL is number);
+    }
+
+    function isValidHolding(data) {
+      return data.keys().hasAll(['uid', 'symbol', 'quantity', 'avgBuyPrice', 'investedValue', 'lastUpdatedAt']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.symbol is string && data.symbol.size() > 0 &&
+             data.quantity is number && data.quantity >= 0 &&
+             data.avgBuyPrice is number && data.avgBuyPrice >= 0 &&
+             data.investedValue is number && data.investedValue >= 0;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "saravanan06032005@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == resource.data.uid;
+    }
+
+    match /watchlist/{itemId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidWatchlistItem(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /alerts/{alertId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidAlert(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidAlert(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+    }
+
+    match /holdings/{holdingId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidHolding(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidHolding(request.resource.data);
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
